@@ -1,13 +1,14 @@
 import { currentProfile } from "@/lib/current-profile";
 import { db } from "@/lib/db";
-import { MemberRole } from "@prisma/client";
+import { MemberRole } from "@prisma/client"; // Now used
 import { NextResponse } from "next/server";
 
 export async function DELETE(
     req: Request,
-    { params }: { params: { channelId: string } }
+    context: { params: Promise<{ channelId: string }> }
 ) {
     try {
+        const params = await context.params;
         const profile = await currentProfile();
         const { searchParams } = new URL(req.url);
         const serverId = searchParams.get("serverId");
@@ -29,19 +30,19 @@ export async function DELETE(
                     some: {
                         profileId: profile.id,
                         role: {
-                            in: [MemberRole.ADMIN, MemberRole.MODERATOR],
-                        }
-                    }
-                }
+                            in: [MemberRole.ADMIN, MemberRole.MODERATOR], // Use enum values
+                        },
+                    },
+                },
             },
             data: {
                 channels: {
                     delete: {
                         id: params.channelId,
-                        name: { not: "general" }
-                    }
-                }
-            }
+                        name: { not: "general" },
+                    },
+                },
+            },
         });
 
         return NextResponse.json(server);
@@ -53,11 +54,12 @@ export async function DELETE(
 
 export async function PATCH(
     req: Request,
-    { params }: { params: { channelId: string } }
+    context: { params: Promise<{ channelId: string }> }
 ) {
     try {
+        const params = await context.params;
         const profile = await currentProfile();
-        const {name, type} = await req.json()
+        const { name, type } = await req.json();
         const { searchParams } = new URL(req.url);
         const serverId = searchParams.get("serverId");
 
@@ -71,8 +73,8 @@ export async function PATCH(
             return new NextResponse("Channel ID Missing", { status: 400 });
         }
 
-        if(name === "general"){
-            return new NextResponse("Name cannot be 'general'", {status:400})
+        if (name === "general") {
+            return new NextResponse("Name cannot be 'general'", { status: 400 });
         }
 
         const server = await db.server.update({
@@ -82,27 +84,27 @@ export async function PATCH(
                     some: {
                         profileId: profile.id,
                         role: {
-                            in: [MemberRole.ADMIN, MemberRole.MODERATOR],
-                        }
-                    }
-                }
+                            in: [MemberRole.ADMIN, MemberRole.MODERATOR], // Use enum values
+                        },
+                    },
+                },
             },
             data: {
                 channels: {
-                    update:{
-                        where:{
+                    update: {
+                        where: {
                             id: params.channelId,
-                            NOT:{
-                              name: "general",  
-                            }
+                            NOT: {
+                                name: "general",
+                            },
                         },
-                        data:{
+                        data: {
                             name,
-                            type
-                        }
-                    }
-                }
-            }
+                            type,
+                        },
+                    },
+                },
+            },
         });
 
         return NextResponse.json(server);

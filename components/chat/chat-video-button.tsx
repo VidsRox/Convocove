@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Video, VideoOff } from "lucide-react";
 
 import { ActionTooltip } from "../action-tooltip";
-import { use } from "react";
 
 export const ChatVideoButton = () => {
     const pathname = usePathname();

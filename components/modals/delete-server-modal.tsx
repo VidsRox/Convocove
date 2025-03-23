@@ -8,10 +8,7 @@ import {
     DialogTitle
 } from "@/components/ui/dialog"
 import { useModal } from "@/hooks/use-modal-store"
-import { Label } from "../ui/label";
-import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { UseOrigin } from "@/hooks/use-origin";
 import { useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";

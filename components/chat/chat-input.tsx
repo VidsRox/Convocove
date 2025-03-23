@@ -16,12 +16,13 @@ import { useModal } from "@/hooks/use-modal-store";
 import { EmojiPicker } from "../emoji-picker";
 import { useRouter } from "next/navigation";
 
-interface ChatInputProps{
+interface ChatInputProps {
     apiUrl: string;
-    query: Record<string, any>;
+    query: Record<string, string | number | boolean>; // Updated type
     name: string;
     type: "conversation" | "channel";
-}
+  }
+  
 
 const formSchema = z.object({
     content: z.string().min(1),

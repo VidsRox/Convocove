@@ -1,7 +1,7 @@
-"use client"
-import * as z from "zod"
+"use client";
+import * as z from "zod";
 import axios from "axios";
-import qs from "query-string"
+import qs from "query-string";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Member, MemberRole, Profile } from "@prisma/client";
@@ -12,176 +12,152 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem
-} from "@/components/ui/form"
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+} from "@/components/ui/form";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { useModal } from "@/hooks/use-modal-store";
 import { useRouter, useParams } from "next/navigation";
 
 interface ChatItemProps {
-    id: string;
-    content: string;
-    member: Member & {
-        profile: Profile
-    };
-    timeStamp: string;
-    fileUrl: string | null;
-    deleted: boolean;
-    currentMember: Member;
-    isUpdated: boolean;
-    socketUrl: string;
-    socketQuery: Record<string, string> 
+  id: string;
+  content: string;
+  member: Member & {
+    profile: Profile;
+  };
+  timeStamp: string;
+  fileUrl: string | null;
+  deleted: boolean;
+  currentMember: Member;
+  isUpdated: boolean;
+  socketUrl: string;
+  socketQuery: Record<string, string>;
 }
 
 const roleIconMap = {
-    "GUEST": null,
-    "MODERATOR": <ShieldCheck className="h-4 w-4 ml-2 text-indigo-500"/>,
-    "ADMIN": <ShieldAlert className="h-4 w-4 ml-2 text-rose-500"/>
-}
+  GUEST: null,
+  MODERATOR: <ShieldCheck className="h-4 w-4 ml-2 text-indigo-500" />,
+  ADMIN: <ShieldAlert className="h-4 w-4 ml-2 text-rose-500" />,
+};
 
 const formSchema = z.object({
-    content: z.string().min(1),
-
-})
+  content: z.string().min(1),
+});
 
 export const ChatItem = ({
-    id,
-    content,
-    member, 
-    timeStamp, 
-    fileUrl,
-    deleted,
-    currentMember,
-    isUpdated,
-    socketQuery,
-    socketUrl
+  id,
+  content,
+  member,
+  timeStamp,
+  fileUrl,
+  deleted,
+  currentMember,
+  isUpdated,
+  socketQuery,
+  socketUrl,
 }: ChatItemProps) => {
-    const [fileType, setFileType] = useState<string | null>(null);
-    const [fileName, setFileName] = useState<string>("File");
-    const [isEditing, setIsEditing] = useState(false)
+  const [fileType, setFileType] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
-    const { onOpen } = useModal()
-    const params = useParams();
-    const router = useRouter();
+  const { onOpen } = useModal();
+  const params = useParams();
+  const router = useRouter();
 
-    const onMemberClick = () => {
-        if (member.id === currentMember.id){
-            return;
-        }
-
-        router.push(`/servers/${params?.serverId}/conversations/${member.id}`);
+  const onMemberClick = () => {
+    if (member.id === currentMember.id) {
+      return;
     }
 
-    useEffect(() => {
-        const handleKeyDown = (event: any) => {
-            if(event.key === "Escape" || event.keyCode === 27){
-                setIsEditing(false);
-            }
-        }
+    router.push(`/servers/${params?.serverId}/conversations/${member.id}`);
+  };
 
-        window.addEventListener('keydown', handleKeyDown);
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" || event.keyCode === 27) {
+        setIsEditing(false);
+      }
+    };
 
-        return window.removeEventListener("keyDown", handleKeyDown)
-    }, [])
+    window.addEventListener("keydown", handleKeyDown);
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
-        defaultValues:{
-            content: content
-        }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      content: content,
+    },
+  });
+
+  const isLoading = form.formState.isSubmitting;
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      const url = qs.stringifyUrl({
+        url: `${socketUrl}/${id}`,
+        query: {
+          ...socketQuery,
+          conversationId:
+            socketQuery.conversation || socketQuery.conversationId,
+        },
+      });
+
+      await axios.patch(url, values);
+
+      form.reset();
+      setIsEditing(false);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    form.reset({
+      content: content,
     });
+  }, [content, form]);
 
-    const isLoading = form.formState.isSubmitting;
+  useEffect(() => {
+    if (!fileUrl) return;
 
-    const onSubmit = async (values: z.infer<typeof formSchema>) => {
-        try {
-            const url = qs.stringifyUrl({
-                url: `${socketUrl}/${id}`,
-                query: {
-                    ...socketQuery,
-                    // Make sure the conversation ID uses the right parameter name
-                    conversationId: socketQuery.conversation || socketQuery.conversationId
-                }
-            })
+    const determineFileType = async () => {
+      try {
+        const response = await fetch(fileUrl, { method: "HEAD" });
+        const contentType =
+          response.headers.get("Content-Type")?.toLowerCase();
 
-            await axios.patch(url, values)
-
-            form.reset();
-            setIsEditing(false);
-        } catch (error) {
-            console.log(error)
-        }
-    }
-    
-    useEffect(() => {
-        form.reset({
-            content: content
-        })
-    }, [content])
-
-    // Fetch file type using HEAD request
-    useEffect(() => {
-        if (!fileUrl) return;
-
-        const determineFileType = async () => {
-            try {
-                const response = await fetch(fileUrl, { method: "HEAD" });
-                const contentType = response.headers.get("Content-Type")?.toLowerCase();
-
-                if (contentType) {
-                    if (contentType.includes("application/pdf")) {
-                        setFileType("pdf");
-                    } else if (contentType.startsWith("image/")) {
-                        setFileType("image");
-                    } else {
-                        setFileType("other");
-                    }
-                } else {
-                    setFileType("other"); // Fallback if no Content-Type is provided
-                }
-            } catch (error) {
-                console.error("Error fetching file type:", error);
-                setFileType("other"); // Fallback on error
-            }
-        };
-
-        determineFileType();
-    }, [fileUrl]);
-
-    // Set file name based on file type
-    useEffect(() => {
-        if (!fileUrl) return;
-
-        if (fileType === "pdf") {
-            try {
-                const urlParts = fileUrl.split("/");
-                let rawFileName = urlParts[urlParts.length - 1].split(/[?#]/)[0];
-                if (rawFileName.length > 5) {
-                    setFileName(decodeURIComponent(rawFileName));
-                } else {
-                    const date = new Date();
-                    setFileName(`PDF Document (${date.toLocaleDateString()})`);
-                }
-            } catch (error) {
-                console.error("Error extracting filename:", error);
-                setFileName("PDF Document");
-            }
-        } else if (fileType === "image") {
-            setFileName("Image");
+        if (contentType) {
+          if (contentType.includes("application/pdf")) {
+            setFileType("pdf");
+          } else if (contentType.startsWith("image/")) {
+            setFileType("image");
+          } else {
+            setFileType("other");
+          }
         } else {
-            setFileName("File");
+          setFileType("other");
         }
-    }, [fileUrl, fileType]); 
+      } catch (error) {
+        console.error("Error fetching file type:", error);
+        setFileType("other");
+      }
+    };
 
-    const isAdmin = currentMember.role === MemberRole.ADMIN;
-    const isModerator = currentMember.role === MemberRole.MODERATOR;
-    const isOwner = currentMember.id === member.id;
-    const canDeleteMessage = !deleted && (isAdmin || isModerator || isOwner);
-    const canEditMessage = !deleted && isOwner && !fileUrl;
+    determineFileType();
+  }, [fileUrl]);
+
+  const isAdmin = currentMember.role === MemberRole.ADMIN;
+  const isModerator = currentMember.role === MemberRole.MODERATOR;
+  const isOwner = currentMember.id === member.id;
+  const canDeleteMessage =
+    !deleted && (isAdmin || isModerator || isOwner);
+  const canEditMessage =
+    !deleted && isOwner && !fileUrl;
+
 
     return (
         <div className="relative group flex items-center hover:bg-black/5 p-4 transition w-full">

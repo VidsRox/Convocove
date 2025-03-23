@@ -21,7 +21,7 @@ import {
 import { useForm } from "react-hook-form"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { useParams, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useModal } from "@/hooks/use-modal-store"
 import {
     Select,
@@ -48,7 +48,6 @@ const formSchema = z.object({
 export const EditChannelModal = () => {
     const { isOpen, onClose, type, data } = useModal();
     const router = useRouter()
-    const params = useParams();
 
     const isModalOpen = isOpen && type === "editChannel"
     const { channel, server } = data
